@@ -13,4 +13,4 @@ function dump (o, name) {
 }
 dump(just, 'just')
 just.print(`rss: ${just.memoryUsage().rss}`)
-require('lib/repl.js').repl()
+require('repl').repl()
