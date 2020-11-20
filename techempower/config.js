@@ -1,10 +1,4 @@
 const libs = [
-  'lib/fs.js',
-  'lib/loop.js',
-  'lib/path.js',
-  'lib/process.js',
-  'lib/build.js',
-  'lib/repl.js',
   'lib/connection.js',
   'lib/dns.js',
   'lib/http.js',

@@ -1,6 +1,5 @@
 const embeds = [
-  'hello.js',
-  'just.js'
+  'hello.js'
 ]
 const target = 'hello'
 const index = 'hello.js'
