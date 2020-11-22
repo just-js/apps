@@ -64,4 +64,4 @@ const embeds = []
 const target = 'techempower'
 const index = 'techempower.js'
 
-module.exports = { version, libs, modules, capabilities, target, index, v8flags, embeds, debug }
+module.exports = { version, libs, modules, capabilities, target, index, v8flags, embeds, debug, static: true }
