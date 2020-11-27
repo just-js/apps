@@ -34,5 +34,6 @@
   }, {
     "name": "encode",
     "obj": ["modules/encode/encode.o"]
-  }]
+  }],
+  "static": true
 }

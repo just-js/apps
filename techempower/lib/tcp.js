@@ -30,7 +30,8 @@ function createServer (host = '127.0.0.1', port = 3000) {
     net.setsockopt(clientfd, SOL_SOCKET, SO_KEEPALIVE, 0)
     loop.add(clientfd, (fd, event) => {
       if (event & EPOLLERR || event & EPOLLHUP) {
-        return closeSocket(socket)
+        closeSocket(socket)
+        return
       }
       const { offset } = buffer
       const bytes = net.recv(fd, buffer, offset, byteLength - offset)
