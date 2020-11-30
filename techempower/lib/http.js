@@ -1,4 +1,4 @@
-const { http } = just.library('http', 'http.so')
+const { http } = just.library('http')
 const { parseRequests, getRequests, getUrl } = http
 
 const free = []

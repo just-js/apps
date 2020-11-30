@@ -1,5 +1,5 @@
 const { create, parse } = require('dns.js')
-const { udp } = just.library('udp', 'udp.so')
+const { udp } = just.library('udp')
 const { net } = just
 const { loop } = just.factory
 const { readFile, isFile } = require('fs')
