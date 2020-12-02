@@ -1,6 +1,6 @@
-const { lookup } = require('lookup.js')
-const { createClient } = require('tcp.js')
-const { md5AuthMessage, syncMessage, startupMessage, createParser, getPGError, constants } = require('pg.js')
+const { lookup } = require('@dns')
+const { createClient } = require('@tcp')
+const { md5AuthMessage, syncMessage, startupMessage, createParser, getPGError, constants } = require('protocol.js')
 const { html } = just.library('html')
 
 const {

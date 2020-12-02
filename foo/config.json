@@ -1,7 +1,7 @@
 {
   "target": "foo",
   "index": "foo.js",
-  "static": false,
+  "static": true,
   "embeds": ["foo.js"],
   "modules": [
     {
@@ -12,13 +12,6 @@
           "obj": [
             "modules/openssl/crypto.o",
             "modules/openssl/deps/openssl-OpenSSL_1_1_1d/libcrypto.a"
-          ]
-        },
-        {
-          "name": "tls",
-          "obj": [
-            "modules/openssl/tls.o",
-            "modules/openssl/deps/openssl-OpenSSL_1_1_1d/libssl.a"
           ]
         }
       ]
@@ -36,6 +29,12 @@
       "name": "fs",
       "obj": [
         "modules/fs/fs.o"
+      ]
+    },
+    {
+      "name": "encode",
+      "obj": [
+        "modules/encode/encode.o"
       ]
     },
     {

@@ -1,4 +1,4 @@
-const { create, parse } = require('dns.js')
+const { create, parse } = require('protocol.js')
 const { udp } = just.library('udp')
 const { net } = just
 const { loop } = just.factory

@@ -1,6 +1,5 @@
-const { connect, constants } = require('lib/connection.js')
-const { createServer } = require('lib/tcp.js')
-const { createParser } = require('lib/http.js')
+const { connect, constants } = require('@pg')
+const { createServer, createParser } = require('@http')
 const { sjs, attr } = require('lib/stringify.js')
 
 function compile (sock, query) {

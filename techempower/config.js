@@ -1,13 +1,12 @@
 const libs = [
-  'lib/connection.js',
-  'lib/dns.js',
-  'lib/http.js',
-  'lib/lookup.js',
-  'lib/md5.js',
-  'lib/monitor.js',
-  'lib/pg.js',
+  'lib/pg/pg.js',
+  'lib/dns/dns.js',
+  'lib/http/http.js',
+  'lib/dns/protocol.js',
+  'lib/pg/md5.js',
+  'lib/pg/protocol.js',
   'lib/stringify.js',
-  'lib/tcp.js'
+  'lib/tcp/tcp.js'
 ]
 
 const version = just.version.just

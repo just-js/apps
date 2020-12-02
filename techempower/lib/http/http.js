@@ -1,3 +1,4 @@
+const { createServer } = require('@tcp')
 const { http } = just.library('http')
 const { parseRequests, getRequests, getUrl } = http
 
@@ -35,4 +36,4 @@ function createParser (buffer) {
   return parser
 }
 
-module.exports = { createParser }
+module.exports = { createParser, createServer }

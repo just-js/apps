@@ -19,6 +19,7 @@ function library (name, path = `${name}.so`) {
   return just.load(just.sys.dlsym(just.sys.dlopen(path), `_register_${name}`))
 }
 const { encode } = library('encode')
+just.print('oh')
 const src = just.sys.calloc(1, just.args[1].slice(0, 100))
 const dest = new ArrayBuffer(128)
 const bytes = encode.base64Encode(src, dest)
