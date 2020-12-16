@@ -151,5 +151,5 @@ const cfg = {
   embeds: config.embeds || []
 }
 just.print(JSON.stringify(cfg, null, '  '))
-buildModule.run(cfg, { dump: true, clean: false, cleanall: false, silent: true })
+buildModule.run(cfg, { dump: false, clean: true, cleanall: false, silent: false })
   .catch(err => just.error(err.stack))
