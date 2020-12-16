@@ -1,0 +1,5 @@
+{
+  "target": "readelf",
+  "index": "readelf.js",
+  "static": true
+}
