@@ -1,6 +1,7 @@
 const { connect, constants } = require('@pg')
-const { createServer, createParser } = require('@http')
-const { sjs, attr } = require('lib/stringify.js')
+const { createServer } = require('@tcp')
+const { createParser } = require('@http')
+const { sjs, attr } = require('@stringify')
 
 function compile (sock, query) {
   return new Promise((resolve, reject) => {

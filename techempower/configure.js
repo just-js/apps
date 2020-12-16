@@ -1,7 +1,8 @@
 const acorn = require('acorn.min.js')
 const { baseName, fileName, join } = just.path
 const { isFile, isDir } = require('fs')
-const buildModule = just.require('../../just/lib/build.js')
+const buildModule = require('build')
+const { launch } = just.process
 
 const AD = '\u001b[0m' // ANSI Default
 const AY = '\u001b[33m' // ANSI Yellow
@@ -31,8 +32,22 @@ function createCache () {
 }
 
 const appRoot = just.sys.cwd()
+let { HOME, JUST_TARGET, JUST_HOME } = just.env()
+if (!JUST_TARGET) {
+  JUST_TARGET = `${HOME}/.just`
+}
+if (!JUST_HOME) {
+  JUST_HOME = JUST_TARGET
+}
 
-const externalCache = {}
+function make (...args) {
+  const currentDir = just.sys.cwd()
+  const process = launch('make', ['C=gcc', 'CC=g++', ...args], currentDir)
+  process.onStdout = (buf, len) => {}
+  process.onStderr = (buf, len) => {}
+  return process
+}
+
 const moduleCache = {}
 const config = require('config.json') || require('config.js')
 if (!isFile('config.js')) {
@@ -43,23 +58,43 @@ const cache = createCache()
 for (const module of builtin.modules) {
   moduleCache[module.name] = module
 }
+if (!config.external) config.external = {}
+
+const appDir = just.sys.cwd()
 
 function getExternalLibrary (originalFileName, fileName) {
-  if (isFile(fileName)) return
-  if (!externalCache[originalFileName]) {
-    just.print(`${originalFileName} external library needed`)
-    externalCache[originalFileName] = fileName
+  if (config.external[originalFileName]) {
+    just.print(`${originalFileName} found in config`)
+  } else {
+    // it is an internal/blessed module
+    const libsDir = `${JUST_TARGET}/libs`
+    if (!isDir(libsDir)) {
+      just.fs.chdir(JUST_TARGET)
+      const process = make('libs')
+      while (1) {
+        const [status, kpid] = just.sys.waitpid(new Uint32Array(2), process.pid)
+        if (kpid === process.pid) {
+          if (status !== 0) throw new Error(`make failed ${status}`)
+          break
+        }
+      }
+      just.fs.chdir(appDir)
+    }
+    const moduleDir = `${JUST_TARGET}/libs/${originalFileName}`
+    if (!isDir(moduleDir)) {
+      throw new Error(`module not found ${moduleDir}`)
+    }
+    fileName = `${moduleDir}/${originalFileName}.js`
+    // we now have the module directory - need to copy files over
+    // TODO: make vendoring an option - src for modules too
   }
+  return fileName
 }
 
+// TODO: if JUST_TARGET does not exists we must create and install it
+
 function getModule (fileName) {
-  let { HOME, JUST_TARGET, JUST_HOME } = just.env()
-  if (!JUST_TARGET) {
-    JUST_TARGET = `${HOME}/.just`
-  }
-  if (!JUST_HOME) {
-    JUST_HOME = JUST_TARGET
-  }
+  // we will assume for now only internal/blessed c++ modules are allowed
   const moduleDir = `${JUST_TARGET}/modules/${fileName}`
   if (!isDir(moduleDir)) {
     just.print(`downloading ${fileName} to ${moduleDir}`)
@@ -83,7 +118,7 @@ function parse (fileName, type = 'script', depth = 0) {
     cache.external.add(fileName.slice(1))
     fileName = `${appRoot}/lib/${fileName.slice(1)}/${just.path.fileName(fileName.slice(1))}.js`
     just.print(`${'  '.repeat(depth)}${AG}external${AD} ${fileName}`)
-    getExternalLibrary(originalFileName, fileName)
+    fileName = getExternalLibrary(originalFileName.slice(1), fileName)
     external = true
   }
   const parent = `${baseName(fileName)}`
@@ -115,7 +150,10 @@ function parse (fileName, type = 'script', depth = 0) {
           if (expr.arguments[0].name !== 'path') {
             let fileName = expr.arguments[0].value
             if (fileName[0] !== '@') {
-              fileName = join(parent, fileName)
+              const ext = fileName.split('.').slice(-1)[0]
+              if (ext === 'js' || ext === 'json') {
+                fileName = join(parent, fileName)
+              }
             }
             parse(fileName, 'module', depth)
           }
@@ -154,6 +192,5 @@ const cfg = {
   modules: [...new Set([...builtinModules, ...Array.from(modules.keys())])].map(k => moduleCache[k]),
   embeds: config.embeds || []
 }
-just.print(JSON.stringify(cfg.embeds))
 buildModule.run(cfg, { dump: false, clean: true, cleanall: false, silent: false })
   .catch(err => just.error(err.stack))
