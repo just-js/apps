@@ -1,7 +1,7 @@
 const acorn = require('acorn.min.js')
-const { baseName, join } = just.path
+const { baseName, fileName, join } = just.path
 const { isFile, isDir } = require('fs')
-const buildModule = just.require('build')
+const buildModule = just.require('../../just/lib/build.js')
 
 const AD = '\u001b[0m' // ANSI Default
 const AY = '\u001b[33m' // ANSI Yellow
@@ -34,15 +34,15 @@ const appRoot = just.sys.cwd()
 
 const externalCache = {}
 const moduleCache = {}
-const config = require('config.js') || require('config.json') || {}
+const config = require('config.json') || require('config.js')
+if (!isFile('config.js')) {
+  delete config.embeds
+}
 const builtin = requireText(just.builtin('config.js')) || {}
 const cache = createCache()
 for (const module of builtin.modules) {
   moduleCache[module.name] = module
 }
-
-//just.print(JSON.stringify(config, null, '  '))
-//just.print(JSON.stringify(builtin, null, '  '))
 
 function getExternalLibrary (originalFileName, fileName) {
   if (isFile(fileName)) return
@@ -138,18 +138,22 @@ function parse (fileName, type = 'script', depth = 0) {
 const scriptName = just.args[2] || 'techempower.js'
 const { index, libs, natives, modules, external } = parse(scriptName)
 const builtinModules = builtin.modules.map(v => v.name)
+if (!config.target || config.target === 'just') {
+  const fn = fileName(scriptName)
+  config.target = fn.slice(0, fn.lastIndexOf('.'))
+}
 const cfg = {
   version: config.version || builtin.version,
   v8flags: config.v8flags || builtin.v8flags,
   debug: config.debug || builtin.debug,
   capabilities: config.capabilities || builtin.capabilities,
-  target: config.target || baseName(scriptName),
+  target: config.target,
   static: config.static || true,
   index,
   libs: Array.from(libs.keys()),
   modules: [...new Set([...builtinModules, ...Array.from(modules.keys())])].map(k => moduleCache[k]),
   embeds: config.embeds || []
 }
-just.print(JSON.stringify(cfg, null, '  '))
+just.print(JSON.stringify(cfg.embeds))
 buildModule.run(cfg, { dump: false, clean: true, cleanall: false, silent: false })
   .catch(err => just.error(err.stack))
