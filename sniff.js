@@ -1,5 +1,5 @@
-const binary = require('lib/binary.js')
-const sniff = require('lib/sniff.js')
+const binary = require('@binary')
+const { Parser, protocols } = require('@packet')
 
 function onPacket (packet, u8) {
   const { offset, bytes, frame, header } = packet
@@ -18,7 +18,6 @@ function onPacket (packet, u8) {
 
 const { net, SystemError } = just
 const { SOCK_RAW, AF_PACKET, PF_PACKET, ETH_P_ALL } = net
-const { Parser, protocols } = sniff
 const { dump, toMAC, htons16, tcpDump, udpDump } = binary
 
 function main (args) {
@@ -47,4 +46,4 @@ function main (args) {
   net.close(fd)
 }
 
-main(just.args.slice(2))
+main(just.args[0] === 'just' ? just.args.slice(2) : just.args.slice(1))
