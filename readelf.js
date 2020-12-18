@@ -1,5 +1,6 @@
 // https://atakua.org/old-wp/wp-content/uploads/2015/03/libelf-by-example-20100112.pdf
 const { encode } = just.library('encode', 'encode.so')
+const { readFileBytes } = require('fs')
 
 function getFileHeader (buf, dv, u8) {
   const out = new ArrayBuffer(32)
@@ -170,13 +171,12 @@ function dumpHeader (header) {
   Number of section headers:         ${header.shEntries}
   Section header string table index: ${header.shteIndex}`)
 }
-
-function main () {
-  const buf = require('fs').readFileBytes('/proc/self/exe')
+function main (args) {
+  const buf = readFileBytes(args[0] || '/proc/self/exe')
   const dv = new DataView(buf)
   const u8 = new Uint8Array(buf)
   const fh = getFileHeader(buf, dv, u8)
   dumpHeader(fh)
 }
 
-main()
+main(just.args.slice(1))

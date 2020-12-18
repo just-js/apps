@@ -7,7 +7,7 @@ just.net.read(fd, source)
 just.net.close(fd)
 const dest = new ArrayBuffer(32)
 const start = Date.now()
-const runs = parseInt(just.args[2] || '1000', 10)
+const runs = parseInt(just.args[1] || '1000', 10)
 for (let i = 1; i < runs; i++) {
   crypto.hash(crypto.SHA256, source, dest, 1024)
 }
@@ -16,3 +16,4 @@ just.print(runs / (elapsed / 1000))
 const hexLength = encode.hexEncode(dest, source, 20)
 const str = sys.readString(source, hexLength)
 just.print(str)
+just.print(just.memoryUsage().rss)

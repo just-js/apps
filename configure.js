@@ -1,15 +1,3 @@
-const acorn = require('acorn.min.js')
-const { baseName, fileName, join } = just.path
-const { isFile, isDir } = require('fs')
-const buildModule = require('build')
-const { launch } = just.process
-
-const AD = '\u001b[0m' // ANSI Default
-const AY = '\u001b[33m' // ANSI Yellow
-const AM = '\u001b[35m' // ANSI Magenta
-const AC = '\u001b[36m' // ANSI Cyan
-const AG = '\u001b[32m' // ANSI Green
-
 function requireText (text) {
   const { vm } = just
   const params = ['exports', 'require', 'module']
@@ -31,15 +19,6 @@ function createCache () {
   return { main: '', index: '', libs, natives, modules, external }
 }
 
-const appRoot = just.sys.cwd()
-let { HOME, JUST_TARGET, JUST_HOME } = just.env()
-if (!JUST_TARGET) {
-  JUST_TARGET = `${HOME}/.just`
-}
-if (!JUST_HOME) {
-  JUST_HOME = JUST_TARGET
-}
-
 function make (...args) {
   const currentDir = just.sys.cwd()
   const process = launch('make', ['C=gcc', 'CC=g++', ...args], currentDir)
@@ -48,25 +27,10 @@ function make (...args) {
   return process
 }
 
-const moduleCache = {}
-const config = require('config.json') || require('config.js')
-if (!isFile('config.js')) {
-  delete config.embeds
-}
-const builtin = requireText(just.builtin('config.js')) || {}
-const cache = createCache()
-for (const module of builtin.modules) {
-  moduleCache[module.name] = module
-}
-if (!config.external) config.external = {}
-
-const appDir = just.sys.cwd()
-
 function getExternalLibrary (originalFileName, fileName) {
   if (config.external[originalFileName]) {
     just.print(`${originalFileName} found in config`)
   } else {
-    // it is an internal/blessed module
     const libsDir = `${JUST_TARGET}/libs`
     if (!isDir(libsDir)) {
       just.fs.chdir(JUST_TARGET)
@@ -85,61 +49,91 @@ function getExternalLibrary (originalFileName, fileName) {
       throw new Error(`module not found ${moduleDir}`)
     }
     fileName = `${moduleDir}/${originalFileName}.js`
-    // we now have the module directory - need to copy files over
-    // TODO: make vendoring an option - src for modules too
   }
   return fileName
 }
 
-// TODO: if JUST_TARGET does not exists we must create and install it
-
-function getModule (fileName) {
-  // we will assume for now only internal/blessed c++ modules are allowed
-  const moduleDir = `${JUST_TARGET}/modules/${fileName}`
-  if (!isDir(moduleDir)) {
-    just.print(`downloading ${fileName} to ${moduleDir}`)
+function getModule (fileName, libName) {
+  const modulesDir = `${JUST_TARGET}/modules`
+  if (!isDir(modulesDir)) {
+    just.fs.chdir(JUST_TARGET)
+    const process = make('modules')
+    while (1) {
+      const [status, kpid] = just.sys.waitpid(new Uint32Array(2), process.pid)
+      if (kpid === process.pid) {
+        if (status !== 0) throw new Error(`make failed ${status}`)
+        break
+      }
+    }
+    just.fs.chdir(appDir)
   }
-  const entry = { name: fileName, obj: [`modules/${fileName}/${fileName}.o`] }
-  const json = require(`${moduleDir}/${fileName}.json`)
+  let moduleDir = `${JUST_TARGET}/modules/${fileName}`
+  if (libName) {
+    libName = libName.replace('.so', '')
+    moduleDir = `${JUST_TARGET}/modules/${libName}`
+  } else {
+    libName = fileName
+  }
+  if (!isDir(moduleDir)) {
+    throw new Error(`Module ${moduleDir} Not Found`)
+  }
+  const json = require(`${moduleDir}/${libName}.json`)
+  const entry = moduleCache[libName] || { name: libName }
   if (json) {
-    for (const obj of json.obj) {
-      entry.obj.push(`modules/${fileName}/${obj}`)
+    if (json.exports) {
+      const lib = json.exports.filter(l => l.name === fileName)[0]
+      if (!entry.exports) entry.exports = []
+      const exists = entry.exports.filter(l => l.name === fileName)
+      if (!exists.length) {
+        const exp = { name: fileName, obj: [] }
+        lib.obj.forEach(o => {
+          exp.obj.push(`modules/${libName}/${o}`)
+        })
+        entry.exports.push(exp)
+      }
+    } else {
+      if (!moduleCache[libName]) {
+        if (!entry.obj) entry.obj = []
+        entry.obj.push(`modules/${libName}/${fileName}.o`)
+        for (const obj of json.obj) {
+          entry.obj.push(`modules/${libName}/${obj}`)
+        }
+      }
     }
     entry.lib = json.lib
+  } else {
+    if (!moduleCache[libName]) {
+      if (!entry.obj) entry.obj = []
+      entry.obj.push(`modules/${libName}/${fileName}.o`)
+    }
   }
-  cache.modules.add(fileName)
-  moduleCache[fileName] = entry
+  cache.modules.add(libName)
+  moduleCache[libName] = entry
 }
 
-function parse (fileName, type = 'script', depth = 0) {
-  let external = false
+function parse (fileName, type = 'script') {
   const originalFileName = fileName
   if (fileName[0] === '@') {
     cache.external.add(fileName.slice(1))
     fileName = `${appRoot}/lib/${fileName.slice(1)}/${just.path.fileName(fileName.slice(1))}.js`
-    just.print(`${'  '.repeat(depth)}${AG}external${AD} ${fileName}`)
     fileName = getExternalLibrary(originalFileName.slice(1), fileName)
-    external = true
   }
   const parent = `${baseName(fileName)}`
-  if (type === 'script') {
-    cache.index = fileName
-    just.print(`${'  '.repeat(depth)}${fileName}`)
-  }
   if (type === 'module' && fileName.indexOf('.') === -1) {
-    just.print(`${'  '.repeat(depth)}${AY}native${AD} ${fileName}`)
     cache.natives.add(just.path.fileName(fileName))
     return
   }
+  if (!isFile(fileName)) {
+    just.error((new Error(`${fileName} Not Found`)).stack)
+    return
+  }
+  if (type === 'script') {
+    cache.index = fileName
+  }
   if (type === 'module') {
-    if (!external) just.print(`${'  '.repeat(depth)}${AC}module${AD} ${fileName}`)
     cache.libs.add(fileName.replace(`${appRoot}/`, ''))
   }
-  if (!isFile(fileName)) {
-    throw new Error(`${fileName} Not Found`)
-  }
   const src = just.fs.readFile(fileName)
-  depth++
   acorn.parse(src, {
     ecmaVersion: 2020,
     sourceType: type,
@@ -147,7 +141,7 @@ function parse (fileName, type = 'script', depth = 0) {
       if (token.value === 'require') {
         const expr = acorn.parseExpressionAt(src, token.start)
         if (expr.type === 'CallExpression') {
-          if (expr.arguments[0].name !== 'path') {
+          if (expr.arguments[0].type === 'Literal') {
             let fileName = expr.arguments[0].value
             if (fileName[0] !== '@') {
               const ext = fileName.split('.').slice(-1)[0]
@@ -155,7 +149,7 @@ function parse (fileName, type = 'script', depth = 0) {
                 fileName = join(parent, fileName)
               }
             }
-            parse(fileName, 'module', depth)
+            parse(fileName, 'module')
           }
         }
         return
@@ -163,9 +157,16 @@ function parse (fileName, type = 'script', depth = 0) {
       if (token.value === 'library') {
         const expr = acorn.parseExpressionAt(src, token.start)
         if (expr.type === 'CallExpression') {
-          const [fileName] = expr.arguments
-          just.print(`${'  '.repeat(depth)}${AM}library${AD} ${fileName.value}`)
-          getModule(fileName.value)
+          const [fileName, libName] = expr.arguments
+          if (libName) {
+            if (fileName.type === 'Literal' && libName.type === 'Literal') {
+              getModule(fileName.value, libName.value)
+            }
+          } else {
+            if (fileName.type === 'Literal') {
+              getModule(fileName.value)
+            }
+          }
         }
       }
     }
@@ -173,8 +174,36 @@ function parse (fileName, type = 'script', depth = 0) {
   return cache
 }
 
-const scriptName = just.args[2] || 'techempower.js'
-const { index, libs, natives, modules, external } = parse(scriptName)
+const scriptName = just.args[0] === 'just' ? just.args[2] : just.args[1]
+if (!scriptName) throw new Error('Please Supply a Script name')
+const appRoot = just.sys.cwd()
+let { HOME, JUST_TARGET, JUST_HOME } = just.env()
+if (!JUST_TARGET) {
+  JUST_TARGET = `${HOME}/.just`
+}
+if (!JUST_HOME) {
+  JUST_HOME = JUST_TARGET
+}
+
+const acorn = require('acorn.min.js')
+const { baseName, fileName, join } = just.path
+const { isFile, isDir } = require('fs')
+const buildModule = require('build')
+const { launch } = just.process
+const moduleCache = {}
+
+const config = require('config.json') || require('config.js')
+if (!isFile('config.js')) {
+  delete config.embeds
+}
+const builtin = requireText(just.builtin('config.js')) || {}
+const cache = createCache()
+for (const module of builtin.modules) {
+  moduleCache[module.name] = module
+}
+if (!config.external) config.external = {}
+const appDir = just.sys.cwd()
+const { index, libs, modules } = parse(scriptName)
 const builtinModules = builtin.modules.map(v => v.name)
 if (!config.target || config.target === 'just') {
   const fn = fileName(scriptName)
@@ -186,7 +215,8 @@ const cfg = {
   debug: config.debug || builtin.debug,
   capabilities: config.capabilities || builtin.capabilities,
   target: config.target,
-  static: config.static || true,
+  static: config.static,
+  main: config.main,
   index,
   libs: Array.from(libs.keys()),
   modules: [...new Set([...builtinModules, ...Array.from(modules.keys())])].map(k => moduleCache[k]),

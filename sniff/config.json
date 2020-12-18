@@ -1,6 +1,0 @@
-{
-  "libs": ["lib/binary.js", "lib/sniff.js"],
-  "target": "sniff",
-  "index": "sniff.js",
-  "static": true
-}
