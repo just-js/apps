@@ -31,7 +31,7 @@ function getExternalLibrary (originalFileName, fileName) {
   if (config.external[originalFileName]) {
     just.print(`${originalFileName} found in config`)
   } else {
-    const libsDir = `${JUST_TARGET}/libs`
+    const libsDir = `${JUST_TARGET}/lib`
     if (!isDir(libsDir)) {
       just.fs.chdir(JUST_TARGET)
       const process = make('libs')
@@ -44,7 +44,7 @@ function getExternalLibrary (originalFileName, fileName) {
       }
       just.fs.chdir(appDir)
     }
-    const moduleDir = `${JUST_TARGET}/libs/${originalFileName}`
+    const moduleDir = `${JUST_TARGET}/lib/${originalFileName}`
     if (!isDir(moduleDir)) {
       throw new Error(`module not found ${moduleDir}`)
     }
@@ -124,14 +124,14 @@ function parse (fileName, type = 'script') {
     return
   }
   if (!isFile(fileName)) {
-    just.error((new Error(`${fileName} Not Found`)).stack)
+    just.error(`Warning ${fileName} not found`)
     return
   }
   if (type === 'script') {
     cache.index = fileName
   }
   if (type === 'module') {
-    cache.libs.add(fileName.replace(`${appRoot}/`, ''))
+    cache.libs.add(fileName.replace(`${appRoot}/`, '').replace(`${JUST_TARGET}/`, ''))
   }
   const src = just.fs.readFile(fileName)
   acorn.parse(src, {
@@ -174,8 +174,27 @@ function parse (fileName, type = 'script') {
   return cache
 }
 
+function parseArgs (args) {
+  const opts = {}
+  args = args.filter(arg => {
+    if (arg === '--static') {
+      opts.static = true
+      return false
+    }
+    return true
+  })
+  return opts
+}
+
+const { baseName, fileName, join } = just.path
+const acorn = require('acorn.min.js')
+const { isFile, isDir } = require('fs')
+
+const opts = parseArgs(just.args)
 const scriptName = just.args[0] === 'just' ? just.args[2] : just.args[1]
 if (!scriptName) throw new Error('Please Supply a Script name')
+const fn = fileName(scriptName)
+const appName = fn.slice(0, fn.lastIndexOf('.'))
 const appRoot = just.sys.cwd()
 let { HOME, JUST_TARGET, JUST_HOME } = just.env()
 if (!JUST_TARGET) {
@@ -185,16 +204,14 @@ if (!JUST_HOME) {
   JUST_HOME = JUST_TARGET
 }
 
-const acorn = require('acorn.min.js')
-const { baseName, fileName, join } = just.path
-const { isFile, isDir } = require('fs')
 const buildModule = require('build')
 const { launch } = just.process
 const moduleCache = {}
 
-const config = require('config.json') || require('config.js')
-if (!isFile('config.js')) {
-  delete config.embeds
+let config = require(`${appName}.config.json`) || require(`${appName}.config.js`)
+if (!config) {
+  config = require('config.js')
+  config.embeds = []
 }
 const builtin = requireText(just.builtin('config.js')) || {}
 const cache = createCache()
@@ -204,10 +221,9 @@ for (const module of builtin.modules) {
 if (!config.external) config.external = {}
 const appDir = just.sys.cwd()
 const { index, libs, modules } = parse(scriptName)
-const builtinModules = builtin.modules.map(v => v.name)
+const builtinModules = config.modules.map(v => v.name)
 if (!config.target || config.target === 'just') {
-  const fn = fileName(scriptName)
-  config.target = fn.slice(0, fn.lastIndexOf('.'))
+  config.target = appName
 }
 const cfg = {
   version: config.version || builtin.version,
@@ -215,12 +231,12 @@ const cfg = {
   debug: config.debug || builtin.debug,
   capabilities: config.capabilities || builtin.capabilities,
   target: config.target,
-  static: config.static,
   main: config.main,
+  static: opts.static || config.static,
   index,
   libs: Array.from(libs.keys()),
   modules: [...new Set([...builtinModules, ...Array.from(modules.keys())])].map(k => moduleCache[k]),
   embeds: config.embeds || []
 }
-buildModule.run(cfg, { dump: false, clean: true, cleanall: false, silent: false })
+buildModule.run(cfg, { dump: false, clean: true, cleanall: false, silent: true })
   .catch(err => just.error(err.stack))
