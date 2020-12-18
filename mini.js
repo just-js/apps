@@ -15,10 +15,10 @@ just.print(JSON.stringify(just.args))
 just.print(JSON.stringify(just.version))
 just.print(just.builtin('mini.js'))
 dump(just, 'just')
-function library (name, path = `${name}.so`) {
+function loadLibrary (name, path = `${name}.so`) {
   return just.load(just.sys.dlsym(just.sys.dlopen(path), `_register_${name}`))
 }
-const { encode } = library('encode')
+const { encode } = loadLibrary('encode')
 just.print('oh')
 const src = just.sys.calloc(1, just.args[1].slice(0, 100))
 const dest = new ArrayBuffer(128)
@@ -27,7 +27,7 @@ just.print(just.sys.readString(dest, bytes))
 just.sys.memoryUsage(mem)
 just.print(`rss ${mem[0]} used ${mem[0] - rss}`)
 function dumplib (name, path) {
-  dump(library(name, path), name)
+  dump(loadLibrary(name, path), name)
 }
 dumplib('blake3')
 dumplib('encode')
