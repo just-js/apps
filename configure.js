@@ -189,13 +189,12 @@ function parseArgs (args) {
 const { baseName, fileName, join } = just.path
 const acorn = require('acorn.min.js')
 const { isFile, isDir } = require('fs')
-
-const opts = parseArgs(just.args)
-const scriptName = just.args[0] === 'just' ? just.args[2] : just.args[1]
-if (!scriptName) throw new Error('Please Supply a Script name')
-const fn = fileName(scriptName)
-const appName = fn.slice(0, fn.lastIndexOf('.'))
+const { launch } = just.process
 const appRoot = just.sys.cwd()
+const cache = createCache()
+const appDir = just.sys.cwd()
+let config
+const moduleCache = {}
 let { HOME, JUST_TARGET, JUST_HOME } = just.env()
 if (!JUST_TARGET) {
   JUST_TARGET = `${HOME}/.just`
@@ -204,39 +203,41 @@ if (!JUST_HOME) {
   JUST_HOME = JUST_TARGET
 }
 
-const buildModule = require('build')
-const { launch } = just.process
-const moduleCache = {}
+function configure (scriptName) {
+  const opts = parseArgs(just.args)
+  if (!scriptName) throw new Error('Please Supply a Script name')
+  const fn = fileName(scriptName)
+  const appName = fn.slice(0, fn.lastIndexOf('.'))
+  config = require(`${appName}.config.json`) || require(`${appName}.config.js`)
+  if (!config) {
+    config = require('config.js')
+    config.embeds = []
+  }
+  const builtin = requireText(just.builtin('config.js')) || {}
+  for (const module of builtin.modules) {
+    moduleCache[module.name] = module
+  }
+  if (!config.external) config.external = {}
+  const { index, libs, modules } = parse(scriptName)
+  const builtinModules = config.modules.map(v => v.name)
+  if (!config.target || config.target === 'just') {
+    config.target = appName
+  }
+  const cfg = {
+    version: config.version || builtin.version,
+    v8flags: config.v8flags || builtin.v8flags,
+    debug: config.debug || builtin.debug,
+    capabilities: config.capabilities || builtin.capabilities,
+    target: config.target,
+    main: config.main,
+    static: opts.static || config.static,
+    index,
+    libs: Array.from(libs.keys()),
+    modules: [...new Set([...builtinModules, ...Array.from(modules.keys())])].map(k => moduleCache[k]),
+    embeds: config.embeds || []
+  }
+  require('build').run(cfg, { dump: false, clean: true, cleanall: false, silent: true })
+    .catch(err => just.error(err.stack))
+}
 
-let config = require(`${appName}.config.json`) || require(`${appName}.config.js`)
-if (!config) {
-  config = require('config.js')
-  config.embeds = []
-}
-const builtin = requireText(just.builtin('config.js')) || {}
-const cache = createCache()
-for (const module of builtin.modules) {
-  moduleCache[module.name] = module
-}
-if (!config.external) config.external = {}
-const appDir = just.sys.cwd()
-const { index, libs, modules } = parse(scriptName)
-const builtinModules = config.modules.map(v => v.name)
-if (!config.target || config.target === 'just') {
-  config.target = appName
-}
-const cfg = {
-  version: config.version || builtin.version,
-  v8flags: config.v8flags || builtin.v8flags,
-  debug: config.debug || builtin.debug,
-  capabilities: config.capabilities || builtin.capabilities,
-  target: config.target,
-  main: config.main,
-  static: opts.static || config.static,
-  index,
-  libs: Array.from(libs.keys()),
-  modules: [...new Set([...builtinModules, ...Array.from(modules.keys())])].map(k => moduleCache[k]),
-  embeds: config.embeds || []
-}
-buildModule.run(cfg, { dump: false, clean: true, cleanall: false, silent: true })
-  .catch(err => just.error(err.stack))
+configure(just.args[0] === 'just' ? just.args[2] : just.args[1])
