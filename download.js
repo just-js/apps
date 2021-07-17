@@ -1,8 +1,3 @@
-const { encode } = just.library('encode')
-const { connect, constants } = require('@pg')
-const { createServer } = require('@tcp')
-const { createParser } = require('@http')
-const { sjs, attr } = require('@stringify')
 const { fetch } = require('@fetch')
 
 async function main (url) {

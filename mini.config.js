@@ -8,7 +8,7 @@ const modules = [{
   obj: [
     'modules/sys/sys.o'
   ],
-  lib: ['dl']
+  lib: ['dl', 'rt']
 }]
 const embeds = ['mini.js']
 const target = 'mini'

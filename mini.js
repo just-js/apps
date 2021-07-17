@@ -1,6 +1,6 @@
 just.sys = just.load('sys').sys
 const mem = new BigUint64Array(16)
-just.sys.memoryUsage(mem)
+just.memoryUsage(mem)
 const rss = mem[0]
 const AD = '\u001b[0m'
 const AG = '\u001b[32m'
@@ -18,13 +18,7 @@ dump(just, 'just')
 function loadLibrary (name, path = `${name}.so`) {
   return just.load(just.sys.dlsym(just.sys.dlopen(path), `_register_${name}`))
 }
-const { encode } = loadLibrary('encode')
-just.print('oh')
-const src = just.sys.calloc(1, just.args[1].slice(0, 100))
-const dest = new ArrayBuffer(128)
-const bytes = encode.base64Encode(src, dest)
-just.print(just.sys.readString(dest, bytes))
-just.sys.memoryUsage(mem)
+just.memoryUsage(mem)
 just.print(`rss ${mem[0]} used ${mem[0] - rss}`)
 function dumplib (name, path) {
   dump(loadLibrary(name, path), name)
@@ -50,5 +44,5 @@ dumplib('vm')
 dumplib('zlib')
 dumplib('crypto', 'openssl.so')
 dumplib('tls', 'openssl.so')
-just.sys.memoryUsage(mem)
+just.memoryUsage(mem)
 just.print(`rss ${mem[0]} used ${mem[0] - rss}`)
