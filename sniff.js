@@ -1,19 +1,22 @@
 const binary = require('@binary')
 const { Parser, protocols } = require('@packet')
 
+let last = just.hrtime()
+
 function onPacket (packet, u8) {
+  const time = just.hrtime()
   const { offset, bytes, frame, header } = packet
+  just.print(time - last)
   if (frame && frame.protocol === 'IPv4' && header && header.protocol === protocols.TCP) {
     // tcp frames
     just.print(tcpDump(packet))
     if (bytes > offset) just.print(dump(u8.slice(offset, bytes)), false)
-    just.print('')
   } else if (frame && frame.protocol === 'IPv4' && header && header.protocol === protocols.UDP) {
     // handle a udp message
     just.print(udpDump(packet))
     if (bytes > offset) just.print(dump(u8.slice(offset, bytes)), false)
-    just.print('')
   }
+  last = time
 }
 
 const { net, SystemError } = just
