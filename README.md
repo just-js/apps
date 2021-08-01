@@ -14,7 +14,7 @@ download a file over http/1.1 on a TLS 1.3 tcp connection
 
 ```
 just build --clean download.js
-./download https://github.com/just-js/just/archive/refs/tags/0.1.0.tar.gz
+./download https://github.com/just-js/just/archive/refs/tags/0.1.1.tar.gz
 ```
 
 ## mini.js
